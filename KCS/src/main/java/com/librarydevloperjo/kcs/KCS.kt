@@ -16,29 +16,61 @@ class KCS {
     Korean unicode formular = (cho * 21 + joong) * 28 + jong + 0xAC00
     */
 
-    fun match(query:String,tocompare:String):Boolean{
-        var matched=false
+        fun match(query:String, toCompare:String):Boolean{
+            var matched=false
+            val letterPositionList = mutableListOf<Int>() // 글자 위치
+            if( toCompare.length >= query.length && !(isOnlyCho(query).isNullOrEmpty()) ){ // 초성이 섞인 경우
+                if(isOnlyCho(query).size != query.length){ // 초성, 글 혼용 검색
+                    /**
+                     * 검색어, 단어 둘다 초성만 해서 필터링
+                     * 글자 위치얻어서 그 위치부분만 글자로 체크
+                     * 초성끼리 비교 후 해당 위치부터 검색 단어 크기만큼 잘라서
+                     * 글자 위치들 마다 같은지 비교하기
+                     */
+                    val queryChars = query.toCharArray()
+                    val compareChars = toCompare.toCharArray()
+                    for(i in query.indices){
+                        val cho = getCho(query[i].toString())
+                        // 검색어 한글(자음, 모음 조합) 부분 위치 저장
+                        if(isHangeul(query[i].toString().single()) || !CHO.contains(query[i].toString())) {
+                            letterPositionList.add(i)
+                        }
+                        queryChars[i]= cho.single()
+                    }
+                    for(i in toCompare.indices){
+                        val cho = getCho(toCompare[i].toString())
+                        compareChars[i]= cho.single()
+                    }
+                    val queryCho = String(queryChars)
+                    val compareCho = String(compareChars)
+                    // 검색어, 단어 서로 초성 검색
+                    if(!compareCho.contains(queryCho,true)) return false //초성 끼리 비교 다를경우 false 반환
+                    else { // 초성끼리 같은경우
+                        val startIndex = compareCho.indexOf(queryCho)  // 검색단어 시작위치
+                        val substringCompare = toCompare.substring(startIndex, startIndex + query.length) // 초성일치부분만 자르기 (성능 고려)
+                        for(i in letterPositionList.indices){
+                            // 글자 포함 안될경우 바로 false 반환
+                            if(!substringCompare.contains(query[letterPositionList[i]])) return false
+                            else matched = true
+                        }
+                    }
 
-        if( tocompare.length >= query.length && !(isOnlyCho(query).isNullOrEmpty()) ){
-
-            val choindexes = isOnlyCho(query)
-            val compareChars = tocompare.toCharArray()
-
-            for(i in choindexes){
-                val cho = getCho(tocompare[i].toString())
-                compareChars[i]= cho.single()
+                } else { // 초성만
+                    val compareChars = toCompare.toCharArray()
+                    for(i in toCompare.indices){ // 기존 단어 초성 변경
+                        val cho = getCho(toCompare[i].toString())
+                        compareChars[i]= cho.single()
+                    }
+                    val compareReplaced = String(compareChars) //초성으로 이루어진 리스트
+                    if(compareReplaced.contains(query,true)){
+                        matched= true
+                    }
+                }
+            }else if(toCompare.contains(query,true)){ // 단어로만 이루어지는 경우
+                matched = true
             }
-            val compareReplaced = String(compareChars)
-
-            if(compareReplaced.contains(query)){
-                matched= true
-            }
-
-        }else if(tocompare.contains(query)){
-            matched = true
+            return matched
         }
-        return matched
-    }
 
     fun isOnlyCho(word:String):ArrayList<Int>{
         val choindexList = ArrayList<Int>()
